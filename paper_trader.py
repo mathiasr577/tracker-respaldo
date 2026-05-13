@@ -18,7 +18,10 @@ def load_state():
         with open('paper_state.json', 'r') as f:
             loaded = json.load(f)
             state.update(loaded)
-            logger.info(f"Estado cargado: ${state['capital']:.2f} capital, {len(state['positions'])} posiciones")
+            # ✅ Reset capital a 1000 sin borrar historial ni posiciones
+            state['capital'] = config.INITIAL_CAPITAL
+            logger.info(f"Estado cargado: capital reseteado a ${state['capital']:.2f} | {len(state['positions'])} posiciones | {len(state['history'])} trades en historial")
+            save_state()
     except FileNotFoundError:
         logger.info("Iniciando desde cero")
         save_state()
@@ -41,7 +44,7 @@ def get_token_price(token_address):
     return None
 
 def copy_trade(wallet, token, action, amount):
-    """Copia trade SIN límites - solo observación pura"""
+    """Copia trade con sistema híbrido de 5%"""
     if action == 'buy':
         if token in state['positions']:
             return
@@ -50,7 +53,7 @@ def copy_trade(wallet, token, action, amount):
         if not price:
             return
 
-        position_size = config.POSITION_SIZE
+        position_size = config.calculate_position_size(state['capital'])
 
         if state['capital'] < position_size:
             logger.info(f"❌ Capital insuficiente: ${state['capital']:.2f}")

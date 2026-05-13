@@ -9,16 +9,23 @@ HELIUS_API_KEY = os.getenv('HELIUS_API_KEY')
 RPC_URL = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
 BIRDEYE_API_KEY = os.getenv('BIRDEYE_API_KEY')
 
-# Paper Trading - SIN límites, solo observación
+# Paper Trading
 INITIAL_CAPITAL = 1000
-POSITION_SIZE = 50  # $50 fijo por trade
+MIN_POSITION_SIZE = 30
+MAX_POSITION_SIZE = 100
+POSITION_SIZE_PCT = 5
 POLL_INTERVAL = 60
 
 # Watchlist
 WATCHLIST_FILE = 'watchlist.json'
 WATCHLIST = []
-
 PENDING_WALLETS = []
+
+def calculate_position_size(current_capital):
+    dynamic_size = current_capital * (POSITION_SIZE_PCT / 100)
+    position_size = max(MIN_POSITION_SIZE, dynamic_size)
+    position_size = min(MAX_POSITION_SIZE, position_size)
+    return round(position_size, 2)
 
 def _load_watchlist():
     global WATCHLIST
@@ -63,9 +70,9 @@ def add_pending_wallet(data):
     if not address:
         return False, "No address"
     if any(w.get('address') == address for w in PENDING_WALLETS):
-        return False, f"Ya está pendiente"
+        return False, "Ya está pendiente"
     PENDING_WALLETS.append({"address": address, "note": data.get('note', '')})
-    return True, f"Agregada a pendientes"
+    return True, "Agregada a pendientes"
 
 def dismiss_pending(address):
     global PENDING_WALLETS
