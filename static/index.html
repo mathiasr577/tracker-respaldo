@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tracker Respaldo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: monospace; background: #0d0d0f; color: #e0e0e0; padding: 20px; }
+  h1 { font-size: 18px; color: #fff; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #555; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { padding: 6px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; background: #1a1a1f; border: 1px solid #2a2a30; color: #888; }
+  .tab.active { background: #a855f722; border-color: #a855f755; color: #a855f7; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: #18181c; border: 1px solid #2a2a30; border-radius: 10px; padding: 16px; }
+  .stat .label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .stat .value { font-size: 22px; font-weight: bold; }
+  .stat .value.green { color: #22c55e; }
+  .stat .value.red { color: #ef4444; }
+  .stat .value.white { color: #fff; }
+  .stat .value.yellow { color: #fbbf24; }
+  .stat .value.purple { color: #a855f7; }
+  .grid { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+  .panel { background: #18181c; border: 1px solid #2a2a30; border-radius: 10px; padding: 16px; }
+  .panel h2 { font-size: 11px; color: #555; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .wallet-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #1a1a20; font-size: 12px; }
+  .wallet-row:last-child { border-bottom: none; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #a855f7; flex-shrink: 0; }
+  .header-row { display: grid; grid-template-columns: 65px 48px 130px 120px 85px 70px; gap: 8px; padding: 5px 8px; font-size: 10px; color: #444; text-transform: uppercase; border-bottom: 1px solid #222; }
+  .trade-row { display: grid; grid-template-columns: 65px 48px 130px 120px 85px 70px; gap: 8px; align-items: center; padding: 9px 8px; border-bottom: 1px solid #1a1a20; font-size: 12px; }
+  .trade-row:hover { background: #1e1e24; }
+  .badge { padding: 2px 7px; border-radius: 4px; font-weight: bold; font-size: 10px; text-align: center; }
+  .badge.BUY { background: #14532d; color: #4ade80; }
+  .badge.SELL { background: #450a0a; color: #f87171; }
+  .token { color: #60a5fa; }
+  .wallet-cell { color: #a78bfa; }
+  .amount { color: #fbbf24; }
+  .sig a { color: #444; font-size: 10px; text-decoration: none; }
+  .sig a:hover { color: #888; }
+  .paper-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .history-row { display: grid; grid-template-columns: 80px 100px 80px 80px 80px 60px; gap: 8px; align-items: center; padding: 8px; border-bottom: 1px solid #1a1a20; font-size: 12px; }
+  .history-row:hover { background: #1e1e24; }
+  .win { color: #22c55e; font-weight: bold; }
+  .loss { color: #ef4444; font-weight: bold; }
+  .pos-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1a1a20; font-size: 12px; }
+  .pos-row:last-child { border-bottom: none; }
+  .ranking-header { display: grid; grid-template-columns: 36px 1fr 70px 50px 50px 80px 80px 70px; gap: 8px; padding: 6px 12px; font-size: 10px; color: #444; text-transform: uppercase; border-bottom: 1px solid #222; }
+  .ranking-row { display: grid; grid-template-columns: 36px 1fr 70px 50px 50px 80px 80px 70px; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #1a1a20; font-size: 12px; }
+  .ranking-row:hover { background: #1e1e24; }
+  .ranking-row.top { background: #001a0f44; border-left: 2px solid #22c55e; }
+  .ranking-row.bad { background: #1a000044; border-left: 2px solid #ef444433; }
+  .rank-num { font-size: 11px; color: #444; font-weight: bold; text-align: center; }
+  .wr-bar-wrap { width: 100%; background: #111; border-radius: 3px; height: 4px; margin-top: 3px; }
+  .wr-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+  .verdict { font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 4px; text-align: center; }
+  .verdict.keep { background: #14532d; color: #4ade80; }
+  .verdict.cut { background: #450a0a; color: #f87171; }
+  .verdict.watch { background: #1a1200; color: #fbbf24; }
+  .status-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #555; margin-bottom: 16px; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: #a855f7; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .empty { color: #333; font-size: 13px; padding: 24px; text-align: center; }
+  .ranking-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .rs { background: #18181c; border: 1px solid #2a2a30; border-radius: 8px; padding: 12px; text-align: center; }
+  .rs .rv { font-size: 20px; font-weight: bold; }
+  .rs .rl { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+</style>
+</head>
+<body>
+<h1>Tracker Respaldo — Solana</h1>
+<p class="sub">Observación pura — sin stop loss, sin límites</p>
+
+<div class="status-bar">
+  <div class="pulse"></div>
+  <span id="status-text">Conectando...</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('trades')">Trades en vivo</div>
+  <div class="tab" onclick="showTab('paper')">Paper Trading</div>
+  <div class="tab" onclick="showTab('ranking')">📊 Ranking por Wallet</div>
+</div>
+
+<div class="page active" id="page-trades">
+  <div class="grid">
+    <div class="panel">
+      <h2>Wallets monitoreadas</h2>
+      <div id="wallets-list"><div class="empty">Cargando...</div></div>
+    </div>
+    <div class="panel">
+      <h2>Trades detectados</h2>
+      <div class="header-row">
+        <span>Hora</span><span>Acción</span><span>Token</span><span>Wallet</span><span>Cantidad</span><span>TX</span>
+      </div>
+      <div id="trades-list"><div class="empty">Esperando trades...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-paper">
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Capital actual</div>
+      <div class="value white" id="capital">$1,000</div>
+    </div>
+    <div class="stat">
+      <div class="label">PnL total</div>
+      <div class="value" id="pnl">$0</div>
+    </div>
+    <div class="stat">
+      <div class="label">Win rate</div>
+      <div class="value yellow" id="winrate">0%</div>
+    </div>
+    <div class="stat">
+      <div class="label">Trades totales</div>
+      <div class="value white" id="trades-total">0W / 0L</div>
+    </div>
+  </div>
+  <div class="paper-grid">
+    <div class="panel">
+      <h2>Posiciones abiertas</h2>
+      <div id="portfolio-list"><div class="empty">Sin posiciones abiertas</div></div>
+    </div>
+    <div class="panel">
+      <h2>Historial de trades</h2>
+      <div style="display:grid;grid-template-columns:80px 100px 80px 80px 80px 60px;gap:8px;padding:5px 8px;font-size:10px;color:#444;text-transform:uppercase;border-bottom:1px solid #222">
+        <span>Token</span><span>Copiado de</span><span>Invertido</span><span>Retorno</span><span>PnL</span><span>Result</span>
+      </div>
+      <div id="history-list"><div class="empty">Sin trades cerrados aún</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-ranking">
+  <div class="ranking-summary">
+    <div class="rs">
+      <div class="rv" id="rk-wallets" style="color:#fff">0</div>
+      <div class="rl">Wallets</div>
+    </div>
+    <div class="rs">
+      <div class="rv" id="rk-keep" style="color:#22c55e">0</div>
+      <div class="rl">Conservar</div>
+    </div>
+    <div class="rs">
+      <div class="rv" id="rk-cut" style="color:#ef4444">0</div>
+      <div class="rl">Cortar</div>
+    </div>
+    <div class="rs">
+      <div class="rv" id="rk-pnl" style="color:#fbbf24">$0</div>
+      <div class="rl">PnL Total</div>
+    </div>
+  </div>
+  <div class="panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <h2 style="margin:0">Ranking por wallet</h2>
+      <div style="font-size:10px;color:#555;">🟢 KEEP &gt;50% WR | 🟡 WATCH 30–50% | 🔴 CUT &lt;30%</div>
+    </div>
+    <div class="ranking-header">
+      <span>#</span><span>Wallet</span><span>Win Rate</span><span>Wins</span><span>Losses</span><span>PnL</span><span>Trades</span><span>Veredicto</span>
+    </div>
+    <div id="ranking-list"><div class="empty">Sin datos aún.</div></div>
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['trades','paper','ranking'][i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'ranking') renderRanking();
+}
+
+async function fetchWallets() {
+  try {
+    const r = await fetch('/api/wallets');
+    const wallets = await r.json();
+    document.getElementById('wallets-list').innerHTML = wallets.length
+      ? wallets.map(w => `
+          <div class="wallet-row">
+            <div class="dot"></div>
+            <span style="color:#aaa">${w.short}</span>
+            <span style="color:#${w.status==='active'?'a855f7':'555'};font-size:11px;margin-left:auto">${w.status}</span>
+          </div>`).join('')
+      : '<div class="empty">Sin wallets</div>';
+  } catch(e) {}
+}
+
+async function fetchTrades() {
+  try {
+    const r = await fetch('/api/trades');
+    const trades = await r.json();
+    document.getElementById('status-text').textContent = `Activo — ${trades.length} trades detectados`;
+    if (!trades.length) return;
+    document.getElementById('trades-list').innerHTML = trades.slice(0,50).map(t => `
+      <div class="trade-row">
+        <span style="color:#555">${t.time}</span>
+        <span class="badge ${t.action}">${t.action}</span>
+        <span class="token">${t.token_short}</span>
+        <span class="wallet-cell">${t.wallet_short}</span>
+        <span class="amount">${Number(t.amount).toLocaleString()}</span>
+        <span class="sig"><a href="https://solscan.io/tx/${t.signature}" target="_blank">solscan ↗</a></span>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function fetchPaper() {
+  try {
+    const r = await fetch('/api/paper');
+    const d = await r.json();
+    const capital = d.capital || 0;
+    const pnl = d.total_pnl || 0;
+    const wins = d.wins || 0;
+    const losses = d.losses || 0;
+    const history = d.history || [];
+    document.getElementById('capital').textContent = '$' + capital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('pnl').textContent = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+    document.getElementById('pnl').className = 'value ' + (pnl >= 0 ? 'green' : 'red');
+    document.getElementById('winrate').textContent = (d.win_rate || 0) + '%';
+    document.getElementById('trades-total').textContent = wins + 'W / ' + losses + 'L';
+    document.getElementById('history-list').innerHTML = history.length
+      ? history.slice().reverse().map(t => {
+          const pnlVal = t.pnl || 0;
+          const isWin = pnlVal >= 0;
+          return `<div class="history-row">
+            <span class="token">${(t.token||'').slice(0,8)}...</span>
+            <span class="wallet-cell">${(t.wallet||'').slice(0,8)}...</span>
+            <span style="color:#aaa">$${(t.amount||0).toFixed(2)}</span>
+            <span style="color:#aaa">$${((t.amount||0)+pnlVal).toFixed(2)}</span>
+            <span class="${isWin?'win':'loss'}">${isWin?'+':''}$${pnlVal.toFixed(2)} (${(t.pnl_percent||0).toFixed(1)}%)</span>
+            <span class="${isWin?'win':'loss'}">${t.reason||'CLOSE'}</span>
+          </div>`;
+        }).join('')
+      : '<div class="empty">Sin trades cerrados aún</div>';
+  } catch(e) {}
+}
+
+async function fetchPortfolio() {
+  try {
+    const r = await fetch('/api/portfolio');
+    const positions = await r.json();
+    document.getElementById('portfolio-list').innerHTML = positions.length
+      ? positions.map(p => {
+          const pnlColor = (p.pnl||0) >= 0 ? '#22c55e' : '#ef4444';
+          return `<div class="pos-row">
+            <div>
+              <span class="token">${p.token_short||''}...</span>
+              <span style="color:#555;font-size:11px;margin-left:8px">${p.hold_time_hours||0}h</span>
+            </div>
+            <div style="text-align:right">
+              <span style="color:#aaa">$${(p.amount||0).toFixed(2)}</span>
+              <span style="color:${pnlColor};margin-left:8px;font-weight:bold">${(p.pnl||0)>=0?'+':''}$${(p.pnl||0).toFixed(2)} (${(p.pnl_percent||0).toFixed(1)}%)</span>
+              <div style="color:#555;font-size:10px">copiando ${p.wallet_short||''}...</div>
+            </div>
+          </div>`;
+        }).join('')
+      : '<div class="empty">Sin posiciones abiertas</div>';
+  } catch(e) {}
+}
+
+async function renderRanking() {
+  try {
+    const r = await fetch('/api/paper');
+    const d = await r.json();
+    const history = d.history || [];
+    if (!history.length) {
+      document.getElementById('ranking-list').innerHTML = '<div class="empty">Sin trades aún.</div>';
+      document.getElementById('rk-wallets').textContent = '0';
+      document.getElementById('rk-keep').textContent = '0';
+      document.getElementById('rk-cut').textContent = '0';
+      document.getElementById('rk-pnl').textContent = '$0';
+      return;
+    }
+    const walletMap = {};
+    for (const t of history) {
+      const fullKey = t.wallet || 'desconocida';
+      const key = fullKey.slice(0,8) + '...';
+      if (!walletMap[fullKey]) walletMap[fullKey] = { wallet: key, wins: 0, losses: 0, pnl: 0, trades: 0 };
+      walletMap[fullKey].trades++;
+      walletMap[fullKey].pnl += parseFloat(t.pnl) || 0;
+      if ((t.pnl||0) >= 0) walletMap[fullKey].wins++;
+      else walletMap[fullKey].losses++;
+    }
+    const wallets = Object.values(walletMap).sort((a,b) => b.pnl - a.pnl);
+    function verdict(w) {
+      const wr = w.wins / Math.max(w.trades,1);
+      if (wr >= 0.5 && w.pnl >= 0) return { label: 'KEEP', cls: 'keep' };
+      if (wr < 0.3 || w.pnl < -20) return { label: 'CUT', cls: 'cut' };
+      return { label: 'WATCH', cls: 'watch' };
+    }
+    const keep = wallets.filter(w => verdict(w).cls === 'keep').length;
+    const cut = wallets.filter(w => verdict(w).cls === 'cut').length;
+    const totalPnl = wallets.reduce((s,w) => s + w.pnl, 0);
+    document.getElementById('rk-wallets').textContent = wallets.length;
+    document.getElementById('rk-keep').textContent = keep;
+    document.getElementById('rk-cut').textContent = cut;
+    document.getElementById('rk-pnl').textContent = (totalPnl>=0?'+$':'-$') + Math.abs(totalPnl).toFixed(2);
+    document.getElementById('rk-pnl').style.color = totalPnl >= 0 ? '#22c55e' : '#ef4444';
+    document.getElementById('ranking-list').innerHTML = wallets.map((w,i) => {
+      const wr = w.wins / Math.max(w.trades,1);
+      const wrPct = (wr*100).toFixed(1);
+      const v = verdict(w);
+      const wrColor = wr>=0.5?'#22c55e':wr>=0.3?'#fbbf24':'#ef4444';
+      const pnlColor = w.pnl>=0?'#22c55e':'#ef4444';
+      const rowCls = v.cls==='keep'?'top':v.cls==='cut'?'bad':'';
+      return `<div class="ranking-row ${rowCls}">
+        <span class="rank-num">#${i+1}</span>
+        <div>
+          <div style="color:#a78bfa;font-size:12px">${w.wallet}</div>
+          <div class="wr-bar-wrap"><div class="wr-bar" style="width:${wrPct}%;background:${wrColor}"></div></div>
+        </div>
+        <div><div style="color:${wrColor};font-weight:bold">${wrPct}%</div></div>
+        <div style="color:#22c55e;font-weight:bold">${w.wins}W</div>
+        <div style="color:#ef4444;font-weight:bold">${w.losses}L</div>
+        <div style="color:${pnlColor};font-weight:bold">${w.pnl>=0?'+':''}$${w.pnl.toFixed(2)}</div>
+        <div style="color:#888">${w.trades} trades</div>
+        <div><span class="verdict ${v.cls}">${v.label}</span></div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('ranking-list').innerHTML = '<div class="empty">Error cargando datos.</div>';
+  }
+}
+
+fetchWallets();
+fetchTrades();
+fetchPaper();
+fetchPortfolio();
+setInterval(fetchTrades, 5000);
+setInterval(fetchPaper, 8000);
+setInterval(fetchPortfolio, 8000);
+setInterval(fetchWallets, 30000);
+setInterval(() => {
+  if (document.getElementById('page-ranking').classList.contains('active')) renderRanking();
+}, 15000);
+</script>
+</body>
+</html>
