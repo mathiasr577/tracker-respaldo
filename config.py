@@ -11,7 +11,6 @@ BIRDEYE_API_KEY = os.getenv('BIRDEYE_API_KEY')
 
 # Paper Trading
 INITIAL_CAPITAL = 1000
-MIN_POSITION_SIZE = 30
 MAX_POSITION_SIZE = 100
 POSITION_SIZE_PCT = 5
 POLL_INTERVAL = 60
@@ -22,8 +21,8 @@ WATCHLIST = []
 PENDING_WALLETS = []
 
 def calculate_position_size(current_capital):
-    dynamic_size = current_capital * (POSITION_SIZE_PCT / 100)
-    position_size = max(MIN_POSITION_SIZE, dynamic_size)
+    """5% del capital actual, máximo $100, sin mínimo"""
+    position_size = current_capital * (POSITION_SIZE_PCT / 100)
     position_size = min(MAX_POSITION_SIZE, position_size)
     return round(position_size, 2)
 
