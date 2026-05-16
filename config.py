@@ -15,13 +15,16 @@ MAX_POSITION_SIZE = 100
 POSITION_SIZE_PCT = 5
 POLL_INTERVAL = 60
 
+# Risk Management
+STOP_LOSS_PERCENT = 15
+MAX_HOLD_TIME = 24 * 3600  # 24 horas para todo
+
 # Watchlist
 WATCHLIST_FILE = 'watchlist.json'
 WATCHLIST = []
 PENDING_WALLETS = []
 
 def calculate_position_size(current_capital):
-    """5% del capital actual, máximo $100, sin mínimo"""
     position_size = current_capital * (POSITION_SIZE_PCT / 100)
     position_size = min(MAX_POSITION_SIZE, position_size)
     return round(position_size, 2)

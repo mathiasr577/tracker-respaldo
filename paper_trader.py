@@ -2,6 +2,7 @@ import json
 import logging
 import requests
 import time
+import copy
 import config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,9 +19,8 @@ def load_state():
         with open('paper_state.json', 'r') as f:
             loaded = json.load(f)
             state.update(loaded)
-            # ✅ Reset capital a 1000 sin borrar historial ni posiciones
             state['capital'] = config.INITIAL_CAPITAL
-            logger.info(f"Estado cargado: capital reseteado a ${state['capital']:.2f} | {len(state['positions'])} posiciones | {len(state['history'])} trades en historial")
+            logger.info(f"Estado cargado: ${state['capital']:.2f} | {len(state['positions'])} posiciones | {len(state['history'])} trades")
             save_state()
     except FileNotFoundError:
         logger.info("Iniciando desde cero")
@@ -44,7 +44,6 @@ def get_token_price(token_address):
     return None
 
 def copy_trade(wallet, token, action, amount):
-    """Copia trade con sistema híbrido de 5%"""
     if action == 'buy':
         if token in state['positions']:
             return
@@ -55,8 +54,7 @@ def copy_trade(wallet, token, action, amount):
 
         position_size = config.calculate_position_size(state['capital'])
 
-        if state['capital'] < position_size:
-            logger.info(f"❌ Capital insuficiente: ${state['capital']:.2f}")
+        if state['capital'] < position_size or position_size < 0.01:
             return
 
         state['positions'][token] = {
@@ -67,7 +65,7 @@ def copy_trade(wallet, token, action, amount):
         }
         state['capital'] -= position_size
 
-        logger.info(f"🟢 BUY {token[:8]} | {wallet[:8]} | ${position_size} @ ${price:.8f}")
+        logger.info(f"🟢 BUY {token[:8]} | {wallet[:8]} | ${position_size:.2f} @ ${price:.8f}")
         logger.info(f"💰 Capital: ${state['capital']:.2f} | Posiciones: {len(state['positions'])}")
         save_state()
 
@@ -114,8 +112,33 @@ def close_position(token, reason):
     save_state()
 
 def check_stop_loss():
-    """Sin stop loss ni time limits - solo observación"""
-    pass
+    positions_copy = copy.deepcopy(state['positions'])
+
+    for token, position in positions_copy.items():
+        try:
+            current_price = get_token_price(token)
+            if not current_price:
+                continue
+
+            entry_price = position['entry_price']
+            pnl_percent = ((current_price - entry_price) / entry_price) * 100
+
+            # Stop loss 15%
+            if pnl_percent <= -config.STOP_LOSS_PERCENT:
+                logger.warning(f"🛑 STOP LOSS {token[:8]}: {pnl_percent:.2f}%")
+                close_position(token, "STOP_LOSS")
+                continue
+
+            # Time limit 24h
+            position_age = time.time() - position['entry_time']
+            if position_age > config.MAX_HOLD_TIME:
+                hours = position_age / 3600
+                logger.warning(f"⏰ TIME LIMIT {token[:8]}: {hours:.1f}h")
+                close_position(token, "TIME_LIMIT")
+                continue
+
+        except Exception as e:
+            logger.error(f"Error check_stop_loss {token[:8]}: {e}")
 
 def get_summary():
     total_pnl = sum(t['pnl'] for t in state['history'])
